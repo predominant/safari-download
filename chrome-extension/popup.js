@@ -21,10 +21,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
 class BookInfo {
   constructor() {
-    getCurrentTab((tab) => {      
+    getCurrentTab((tab) => {
       this.bookId = this.getBookId(tab.url);
       this.chapters = [];
-      this.render();
+      this.render(tab.url);
     });
   }
 
@@ -36,9 +36,9 @@ class BookInfo {
     })
   }
 
-  render() {
+  render(url) {
     if (this.bookId != null) {
-      this.getBookInfo()
+      this.getBookInfo(url)
         .then((info) => { this.bookInfo = info })
         .then(() => { 
           $('#loading').hide();
@@ -55,7 +55,8 @@ class BookInfo {
           $("#book-cover").attr("src", this.bookInfo.cover);
           $('#book-info').show();
 
-          let chapter_list_url = `https://www.safaribooksonline.com/api/v1/book/${this.bookId}/chapter/`
+          let host = this.getHostUrl(url);
+          let chapter_list_url = `${host}/api/v1/book/${this.bookId}/chapter/`
           this.getChapterList(chapter_list_url)
               .then( (chapters) => this.fetchChapterList(chapters))
               .then( () => this.renderChapterList());
@@ -93,11 +94,12 @@ class BookInfo {
     // match a url like:
     // https://www.safaribooksonline.com/library/view/startup-opportunities-2nd/9781119378181/
     // https://www.safaribooksonline.com/library/view/startup-growth-engines/77961SEM00001/
+    // https://learning.oreilly.com/library/view/unity-2018-cookbook/9781788471909/
     let match = url.match(/\/library\/view\/[^\/]+\/(\w+)\//)
     let bookId = match && match[1]
 
     if (!bookId) {
-      console.log('could not extract book id from url, only domain "www.safaribooksonline.com“ is supported.');
+      console.log('could not extract book id from url, only "www.safaribooksonline.com“ and "learning.oreilly.com" are supported.');
       return null;
     }
 
@@ -128,8 +130,15 @@ class BookInfo {
     }, {concurrency: 10})
   }
 
-  getBookInfo() {
-    let url = `https://www.safaribooksonline.com/api/v1/book/${this.bookId}/`
+  getHostUrl(source_url) {
+    let url_regex = /^(https?:\/\/[^\/]+)\//;
+    let url_matches = source_url.match(url_regex);
+    return url_matches[0];
+  }
+
+  getBookInfo(source_url) {
+    let host = this.getHostUrl(source_url);
+    let url = `${host}/api/v1/book/${this.bookId}/`
     return fetch(url, {
       credentials: 'include'
     }).then((res) => {
